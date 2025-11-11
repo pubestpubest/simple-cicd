@@ -1,0 +1,39 @@
+name: Notify Discord and Deploy Webhook
+
+on:
+  push:
+    branches: [main]
+    paths-ignore:
+      - "**.md"
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v3
+
+      - name: Send Discord notification
+        uses: Ilshidur/action-discord@0.4.0
+        env:
+          DISCORD_WEBHOOK: ${{ secrets.DISCORD_WEBHOOK_URL }}
+        with:
+          args: "✅ Deployment started for **${{ github.repository }}**\n🔗 Repo: ${{ github.server_url }}/${{ github.repository }}\n📝 Commit: ${{ github.server_url }}/${{ github.repository }}/commit/${{ github.sha }}"
+
+      - name: Trigger remote deployment webhook
+        env:
+          WEBHOOK_SECRET: ${{ secrets.WEBHOOK_SECRET }}
+        run: |
+          # JSON payload
+          PAYLOAD='{"ref":"refs/heads/main"}'
+
+          # Generate GitHub-style HMAC SHA256 signature
+          SIG=$(printf "$PAYLOAD" | openssl dgst -sha256 -hmac "$WEBHOOK_SECRET" | sed 's/^.* //')
+          SIG="sha256=$SIG"
+
+          # Send webhook to your server
+          curl -X POST ${{ secrets.WEBHOOK_URL }} \
+            -H "Content-Type: application/json" \
+            -H "X-Hub-Signature-256: $SIG" \
+            -d "$PAYLOAD"
