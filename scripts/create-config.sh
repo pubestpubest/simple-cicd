@@ -1,8 +1,11 @@
 #!/bin/bash
-source ~/scripts/env.sh
 
-mkdir -p ~/configs
-cat > ~/configs/cloudflared.yml <<EOF
+# Dynamically find and source env.sh
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+source "$SCRIPT_DIR/env.sh"
+
+mkdir -p "${HOME}/configs"
+cat > "${HOME}/configs/cloudflared.yml" <<EOF
 tunnel: ${TUNNEL_NAME}
 credentials-file: ${APP_DIR}/.cloudflared/${TUNNEL_ID}.json
 
@@ -14,4 +17,4 @@ ingress:
   - service: http_status:404
 EOF
 
-echo "✅ cloudflared config generated at ~/configs/cloudflared.yml"
+echo "✅ cloudflared config generated at ${HOME}/configs/cloudflared.yml"

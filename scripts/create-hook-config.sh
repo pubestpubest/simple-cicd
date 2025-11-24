@@ -1,15 +1,17 @@
 #!/bin/bash
-# Load environment variables
-source ~/scripts/env.sh
+
+# Dynamically find and source env.sh
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+source "$SCRIPT_DIR/env.sh"
 
 # Ensure output directory exists
-mkdir -p ~/configs
+mkdir -p "${HOME}/configs"
 
 # Generate webhook hook config
-cat > ~/configs/hooks.yml <<EOF
+cat > "${HOME}/configs/hooks.yml" <<EOF
 - id: deploy-myapp
-  execute-command: ~/scripts/deploy.sh
-  command-working-directory: ~
+  execute-command: ${SCRIPTS_DIR}/deploy.sh
+  command-working-directory: ${HOME}
   response-message: "Deployment triggered!"
   trigger-rule:
     and:
@@ -27,4 +29,4 @@ cat > ~/configs/hooks.yml <<EOF
             name: ref
 EOF
 
-echo "✅ Webhook config generated at ~/configs/hooks.yml"
+echo "✅ Webhook config generated at ${HOME}/configs/hooks.yml"
