@@ -1,0 +1,31 @@
+[Unit]
+Description=Web Application Service
+After=network.target
+
+[Service]
+# Your app directory
+WorkingDirectory=/home/pubest/simple-web
+
+# Start command
+ExecStart=/usr/bin/pnpm start
+
+# Set your environment file
+#EnvironmentFile=/home/pubest/scripts/env.sh
+
+# Restart on crash or exit
+Restart=always
+RestartSec=5
+
+# Ensure it runs under your user
+User=pubest
+Group=pubest
+
+# Needed if pnpm is in user's PATH only
+#Environment=PATH=/usr/local/bin:/usr/bin:/bin:/home/pubest/.local/share/pnpm:/home/pubest/.nvm/versions/node/v20.0.0/bin
+
+# Logs handled by systemd (journalctl)
+StandardOutput=append:/home/pubest/simple-web/log.txt
+StandardError=append:/home/pubest/simple-web/log.txt
+
+[Install]
+WantedBy=multi-user.target

@@ -6,7 +6,7 @@ echo "🔧 Updating system..."
 sudo apt update && sudo apt upgrade -y
 
 echo "📦 Installing required packages..."
-sudo apt install -y git curl screen jq webhook unzip
+sudo apt install -y git curl jq webhook unzip
 
 # Install Node.js (LTS) + pnpm
 if ! command -v node >/dev/null 2>&1; then

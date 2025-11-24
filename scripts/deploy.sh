@@ -13,14 +13,20 @@ git reset --hard origin/main
 echo "📦 Installing dependencies via pnpm..."
 pnpm install --frozen-lockfile
 
-echo "🧹 Stopping old screen session..."
-screen -S web -X quit || true
+echo "🚀 Restarting systemd service..."
+sudo -n systemctl restart web
 
-echo "🚀 Starting new screen session..."
-screen -dmS web bash -c "cd $APP_DIR && pnpm run start >> $APP_DIR/log.txt 2>&1"
+echo "⏳ Waiting for service to stabilize..."
+sleep 3
+
+sudo -n systemctl is-active --quiet web \
+  && echo "✅ Service is running." \
+  || { echo "❌ Service failed to start."; exit 1; }
 
 echo "✅ Deployment successful!"
 curl -H "Content-Type: application/json" \
      -X POST \
      -d '{"content":"✅ Deployment complete on VM!"}' \
      $DISCORD_WEBHOOK
+
+

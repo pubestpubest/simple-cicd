@@ -1,0 +1,21 @@
+[Unit]
+Description=Webhook Listener Service
+After=network.target
+
+[Service]
+User=pubest
+Group=pubest
+WorkingDirectory=/home/pubest
+ExecStart=/usr/bin/webhook \
+    -hooks /home/pubest/configs/hooks.yml \
+    -port 9000 \
+    -verbose
+
+Restart=always
+RestartSec=3
+
+# environment (if needed)
+Environment=PATH=/usr/local/bin:/usr/bin:/bin
+
+[Install]
+WantedBy=multi-user.target
