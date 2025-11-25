@@ -11,7 +11,7 @@ git fetch origin main
 git reset --hard origin/main
 
 echo "📦 Installing dependencies via pnpm..."
-pnpm install --frozen-lockfile
+pnpm install --no-frozen-lockfile
 
 echo "🚀 Restarting systemd service..."
 sudo -n systemctl restart web
