@@ -136,7 +136,14 @@ source scripts/env.sh
 ./scripts/create-hook-config.sh
 ```
 
-You can add or remove additional ingress entries (subdomains) as needed by editing cloudflared.yml. For example, you could add api.example.com pointing to another port.
+The `create-config.sh` script will:
+
+- Copy cloudflared credentials from `~/.cloudflared/` to `/etc/cloudflared/`
+- Generate the config file at `/etc/cloudflared/config.yml` with your environment variables
+- Include the origin certificate path for authentication
+
+You can later add or remove additional ingress entries (subdomains) by editing `/etc/cloudflared/config.yml`. For example, you could add `api.example.com` pointing to another port.
+
 After running both scripts, your VM has all configuration files ready for Cloudflared and the webhook listener.
 
 ### 7. Configure DNS Routes and Start Cloudflared
@@ -148,8 +155,12 @@ cloudflared tunnel route dns $TUNNEL_NAME $DEPLOY_DOMAIN
 # Route subdomain (for webhook listener or other services)
 cloudflared tunnel route dns $TUNNEL_NAME hooks.$DEPLOY_DOMAIN
 
-sudo cloudflared --config ~/configs/cloudflared.yml service install
+# Install and start cloudflared service
+sudo cloudflared service install
+sudo systemctl status cloudflared
 ```
+
+**Note**: The config file is located at `/etc/cloudflared/config.yml`, which is the standard location cloudflared expects. The service will start automatically on boot.
 
 ### 8. Setup Systemd Services
 

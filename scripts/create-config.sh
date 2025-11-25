@@ -4,10 +4,31 @@
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 source "$SCRIPT_DIR/env.sh"
 
-mkdir -p "${HOME}/configs"
-cat > "${HOME}/configs/cloudflared.yml" <<EOF
+echo "🔧 Setting up cloudflared configuration..."
+
+# Check if credentials exist
+if [ ! -f "${HOME}/.cloudflared/cert.pem" ]; then
+  echo "❌ Error: cert.pem not found at ${HOME}/.cloudflared/"
+  echo "Please run 'cloudflared tunnel login' first."
+  exit 1
+fi
+
+if [ ! -f "${HOME}/.cloudflared/${TUNNEL_ID}.json" ]; then
+  echo "❌ Error: Tunnel credentials not found at ${HOME}/.cloudflared/${TUNNEL_ID}.json"
+  echo "Please verify your TUNNEL_ID in env.sh matches your tunnel credentials file."
+  exit 1
+fi
+
+# Copy cloudflared credentials to /etc/cloudflared/
+sudo mkdir -p /etc/cloudflared
+sudo cp "${HOME}/.cloudflared/cert.pem" /etc/cloudflared/
+sudo cp "${HOME}/.cloudflared/${TUNNEL_ID}.json" /etc/cloudflared/
+
+# Create config in the standard cloudflared location
+sudo tee /etc/cloudflared/config.yml > /dev/null <<EOF
 tunnel: ${TUNNEL_NAME}
-credentials-file: ${APP_DIR}/.cloudflared/${TUNNEL_ID}.json
+credentials-file: /etc/cloudflared/${TUNNEL_ID}.json
+origincert: /etc/cloudflared/cert.pem
 
 ingress:
   - hostname: ${DEPLOY_DOMAIN}
@@ -17,4 +38,5 @@ ingress:
   - service: http_status:404
 EOF
 
-echo "✅ cloudflared config generated at ${HOME}/configs/cloudflared.yml"
+echo "✅ Cloudflared config and credentials copied to /etc/cloudflared/"
+echo "📋 Config file: /etc/cloudflared/config.yml"
