@@ -201,12 +201,14 @@ journalctl -u webhook -f
 tail -f $APP_DIR/log.txt
 ```
 
-💡 **Important**: For automatic deployments to work, you need to configure passwordless sudo for systemctl restart. Add this to `/etc/sudoers.d/deploy`:
+💡 **Important**: For automatic deployments to work, you need to configure passwordless sudo for systemctl commands. Add this to `/etc/sudoers.d/deploy`:
 
 ```bash
-echo "$USER ALL=(ALL) NOPASSWD: /bin/systemctl restart web" | sudo tee /etc/sudoers.d/deploy
+echo "$USER ALL=(ALL) NOPASSWD: /bin/systemctl * web" | sudo tee /etc/sudoers.d/deploy
 sudo chmod 440 /etc/sudoers.d/deploy
 ```
+
+This wildcard allows all systemctl commands (restart, start, stop, status, is-active, etc.) for the `web` service without requiring a password.
 
 🔧 **Webhook behavior**:
 
