@@ -165,11 +165,11 @@ After running both scripts, your VM has all configuration files ready for Cloudf
 ### 7. Configure DNS Routes and Start Cloudflared
 
 ```bash
-# Route main domain
-cloudflared tunnel route dns $TUNNEL_NAME $DEPLOY_DOMAIN
+# Route main domain (requires sudo to read cert from /etc/cloudflared/)
+sudo cloudflared tunnel route dns $TUNNEL_NAME $DEPLOY_DOMAIN
 
 # Route subdomain (for webhook listener or other services)
-cloudflared tunnel route dns $TUNNEL_NAME hooks.$DEPLOY_DOMAIN
+sudo cloudflared tunnel route dns $TUNNEL_NAME hooks.$DEPLOY_DOMAIN
 
 # Install and start cloudflared service
 sudo cloudflared service install
@@ -178,7 +178,7 @@ sudo systemctl status cloudflared
 
 **Note**: The config file is located at `/etc/cloudflared/config.yml`, which is the standard location cloudflared expects. The service will start automatically on boot.
 
-**Troubleshooting**: If you see warnings like `Can't read origin cert from /etc/cloudflared/cert.pem` when running DNS route commands, but the DNS records appear in your Cloudflare dashboard and the service is running, this is expected. The warnings occur because the commands check `/etc/cloudflared/` first but can fall back to `~/.cloudflared/`. As long as the service is active and DNS records are created, everything is working correctly.
+**Important**: The DNS route commands require `sudo` because they need to read the origin certificate from `/etc/cloudflared/cert.pem`, which is owned by root. If you see errors like `Can't read origin cert from /etc/cloudflared/cert.pem`, make sure you're using `sudo` for the `cloudflared tunnel route dns` commands.
 
 If you ran `create-config.sh` before permissions were added to the script, manually fix permissions:
 ```bash

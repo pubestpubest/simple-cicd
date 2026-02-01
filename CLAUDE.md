@@ -116,8 +116,8 @@ source scripts/env.sh
 ./scripts/create-service-files.sh
 
 # 6. Setup DNS and start cloudflared
-cloudflared tunnel route dns $TUNNEL_NAME $DEPLOY_DOMAIN
-cloudflared tunnel route dns $TUNNEL_NAME hooks.$DEPLOY_DOMAIN
+sudo cloudflared tunnel route dns $TUNNEL_NAME $DEPLOY_DOMAIN
+sudo cloudflared tunnel route dns $TUNNEL_NAME hooks.$DEPLOY_DOMAIN
 sudo cloudflared service install
 sudo systemctl status cloudflared
 
