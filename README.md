@@ -192,27 +192,60 @@ sudo systemctl restart cloudflared
 
 **Important**: With Docker deployment, `$APP_DIR` on the production server is NOT your application source code. It's just a directory containing `docker-compose.yml` that references your pre-built DockerHub image.
 
-1. **Create the app directory and copy docker-compose.yml template:**
+**Choose your setup:**
+- **Single container** - Use `docker-compose.yml` (web service only)
+- **Multi-container** - Use `docker-compose.multi-container.yml` (web + PostgreSQL + Redis)
 
+See [configs.example/README.md](configs.example/README.md) for detailed examples and explanations.
+
+1. **Create the app directory and copy templates:**
+
+   **For single container:**
    ```bash
    mkdir -p $APP_DIR
    cp configs.example/docker-compose.yml $APP_DIR/
+   cp configs.example/.env.example $APP_DIR/.env
    cp configs.example/.env.docker $APP_DIR/
    ```
 
-2. **Edit docker-compose.yml:**
+   **For multi-container:**
+   ```bash
+   mkdir -p $APP_DIR
+   cp configs.example/docker-compose.multi-container.yml $APP_DIR/docker-compose.yml
+   cp configs.example/.env.example $APP_DIR/.env
+   cp configs.example/.env.docker $APP_DIR/
+   ```
 
-   - Replace `your-dockerhub-username/your-app-name` with your actual DockerHub image
-   - Adjust volume mounts for your app's persistent data
-   - Ensure port 4000 is mapped
-   - Verify health check endpoint matches your app
+2. **Edit `.env` file (Docker Compose variables):**
 
-3. **Edit .env.docker:**
+   ```bash
+   cd $APP_DIR
+   nano .env
+   ```
+
+   Update these values:
+   - `DOCKER_IMAGE` - Your DockerHub image (e.g., `username/app-name`)
+   - `DOCKER_CONTAINER_NAME` - Container name (e.g., `web-app`)
+   - `COMPOSE_PROJECT_NAME` - Project name prefix (e.g., `myapp`)
+   - For multi-container: `POSTGRES_*` database credentials
+
+3. **Edit `.env.docker` (Application environment variables):**
+
+   ```bash
+   nano .env.docker
+   ```
 
    - Add your app-specific environment variables
-   - Add `.env.docker` to `.gitignore` (never commit secrets!)
+   - Database URLs, API keys, secrets, etc.
+   - **Important:** Add `.env` and `.env.docker` to `.gitignore` (never commit secrets!)
 
-4. **Update scripts/env.sh:**
+4. **Review docker-compose.yml:**
+
+   - Verify port mappings match your app
+   - Adjust volume mounts for persistent data
+   - Check health check endpoint exists in your app
+
+5. **Update scripts/env.sh:**
 
    ```bash
    nano scripts/env.sh

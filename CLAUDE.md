@@ -65,6 +65,11 @@ Scripts dynamically source `env.sh` to generate configs:
 - `create-hook-config.sh` → `~/configs/hooks.yml`
 - `create-service-files.sh` → `/etc/systemd/system/{web,webhook}.service`
 
+**Docker Compose Setup:**
+- Single container: `configs.example/docker-compose.yml`
+- Multi-container: `configs.example/docker-compose.multi-container.yml` (includes PostgreSQL + Redis)
+- See `configs.example/README.md` for detailed examples and COMPOSE_PROJECT_NAME usage
+
 ### Deployment Flow
 
 1. Developer pushes to main branch

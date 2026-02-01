@@ -1,0 +1,108 @@
+# Multi-container Docker Compose example
+# This example shows how to set up a web app with PostgreSQL and Redis
+# Copy this to your app directory as docker-compose.yml and customize
+
+services:
+  web:
+    image: ${DOCKER_IMAGE:-your-dockerhub-username/your-app-name}:latest
+
+    # Option 1: Explicit container name (overrides COMPOSE_PROJECT_NAME)
+    container_name: ${DOCKER_CONTAINER_NAME:-web-app}
+
+    # Option 2: Let COMPOSE_PROJECT_NAME control the name
+    # Remove container_name line above - container will be named: ${COMPOSE_PROJECT_NAME}_web_1
+
+    restart: unless-stopped
+
+    ports:
+      - "4000:4000"
+
+    # Environment file for app configuration
+    env_file:
+      - .env.docker
+
+    # Additional environment variables
+    environment:
+      - DATABASE_URL=postgresql://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:-postgres}@db:5432/${POSTGRES_DB:-myapp}
+      - REDIS_URL=redis://redis:6379
+
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_started
+
+    volumes:
+      - ./data:/app/data
+      - ./uploads:/app/uploads
+      - ./logs:/app/logs
+
+    networks:
+      - app-network
+
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:4000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+  db:
+    image: postgres:15-alpine
+
+    # Using explicit name for easier reference
+    container_name: ${COMPOSE_PROJECT_NAME:-myapp}-postgres
+
+    restart: unless-stopped
+
+    environment:
+      - POSTGRES_USER=${POSTGRES_USER:-postgres}
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD:-postgres}
+      - POSTGRES_DB=${POSTGRES_DB:-myapp}
+
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      # Optional: Init scripts
+      # - ./init-db:/docker-entrypoint-initdb.d
+
+    networks:
+      - app-network
+
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-postgres}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  redis:
+    image: redis:7-alpine
+
+    container_name: ${COMPOSE_PROJECT_NAME:-myapp}-redis
+
+    restart: unless-stopped
+
+    command: redis-server --appendonly yes
+
+    volumes:
+      - redis_data:/data
+
+    networks:
+      - app-network
+
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+
+networks:
+  app-network:
+    # Explicitly name the network using COMPOSE_PROJECT_NAME
+    name: ${COMPOSE_PROJECT_NAME:-myapp}_network
+    driver: bridge
+
+volumes:
+  postgres_data:
+    name: ${COMPOSE_PROJECT_NAME:-myapp}_postgres_data
+  redis_data:
+    name: ${COMPOSE_PROJECT_NAME:-myapp}_redis_data
