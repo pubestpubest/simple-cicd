@@ -24,6 +24,10 @@ sudo mkdir -p /etc/cloudflared
 sudo cp "${HOME}/.cloudflared/cert.pem" /etc/cloudflared/
 sudo cp "${HOME}/.cloudflared/${TUNNEL_ID}.json" /etc/cloudflared/
 
+# Set proper permissions for cloudflared credentials
+sudo chmod 600 /etc/cloudflared/cert.pem
+sudo chmod 600 /etc/cloudflared/${TUNNEL_ID}.json
+
 # Create config in the standard cloudflared location
 sudo tee /etc/cloudflared/config.yml > /dev/null <<EOF
 tunnel: ${TUNNEL_NAME}
@@ -37,6 +41,9 @@ ingress:
     service: http://localhost:9000
   - service: http_status:404
 EOF
+
+# Set permissions for config file
+sudo chmod 644 /etc/cloudflared/config.yml
 
 echo "✅ Cloudflared config and credentials copied to /etc/cloudflared/"
 echo "📋 Config file: /etc/cloudflared/config.yml"

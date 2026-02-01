@@ -155,6 +155,7 @@ The `create-config.sh` script will:
 
 - Copy cloudflared credentials from `~/.cloudflared/` to `/etc/cloudflared/`
 - Generate the config file at `/etc/cloudflared/config.yml` with your environment variables
+- Set proper permissions (600 for credentials, 644 for config)
 - Include the origin certificate path for authentication
 
 You can later add or remove additional ingress entries (subdomains) by editing `/etc/cloudflared/config.yml`. For example, you could add `api.example.com` pointing to another port.
@@ -176,6 +177,16 @@ sudo systemctl status cloudflared
 ```
 
 **Note**: The config file is located at `/etc/cloudflared/config.yml`, which is the standard location cloudflared expects. The service will start automatically on boot.
+
+**Troubleshooting**: If you see warnings like `Can't read origin cert from /etc/cloudflared/cert.pem` when running DNS route commands, but the DNS records appear in your Cloudflare dashboard and the service is running, this is expected. The warnings occur because the commands check `/etc/cloudflared/` first but can fall back to `~/.cloudflared/`. As long as the service is active and DNS records are created, everything is working correctly.
+
+If you ran `create-config.sh` before permissions were added to the script, manually fix permissions:
+```bash
+sudo chmod 600 /etc/cloudflared/cert.pem
+sudo chmod 600 /etc/cloudflared/$TUNNEL_ID.json
+sudo chmod 644 /etc/cloudflared/config.yml
+sudo systemctl restart cloudflared
+```
 
 ### 7.5. Setup Application Docker Configuration
 
