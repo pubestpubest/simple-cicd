@@ -14,27 +14,34 @@ trap "rm -rf $TEMP_DIR" EXIT
 # Generate web.service
 cat > "$TEMP_DIR/web.service" <<EOF
 [Unit]
-Description=Web Application Service
-After=network.target
+Description=Web Application Service (Docker)
+After=docker.service network.target
+Requires=docker.service
 
 [Service]
-# Your app directory
+Type=oneshot
+RemainAfterExit=yes
 WorkingDirectory=${APP_DIR}
 
-# Start command
-ExecStart=/usr/bin/pnpm start
+# Stop any existing containers before starting
+ExecStartPre=-/usr/bin/docker compose down
 
-# Restart on crash or exit
-Restart=always
+# Start containers (pulls image if not present)
+ExecStart=/usr/bin/docker compose up -d --pull always
+
+# Stop containers on service stop
+ExecStop=/usr/bin/docker compose down
+
+# Restart policy
+Restart=on-failure
 RestartSec=5
 
-# Ensure it runs under your user
+# Run as user (docker group membership required)
 User=${USER}
 Group=${USER}
 
-# Logs handled by systemd (journalctl) and file
-StandardOutput=append:${APP_DIR}/log.txt
-StandardError=append:${APP_DIR}/log.txt
+# Ensure docker socket access
+SupplementaryGroups=docker
 
 [Install]
 WantedBy=multi-user.target

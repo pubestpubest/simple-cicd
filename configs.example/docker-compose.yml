@@ -1,0 +1,38 @@
+version: '3.8'
+
+services:
+  web:
+    # Pull from DockerHub (replace with your image)
+    image: ${DOCKER_IMAGE:-your-dockerhub-username/your-app-name}:latest
+
+    container_name: ${DOCKER_CONTAINER_NAME:-web-app}
+
+    restart: unless-stopped
+
+    ports:
+      - "4000:4000"
+
+    # Optional: environment file for app configuration
+    env_file:
+      - .env.docker
+
+    # Optional: volume mounts for persistent data
+    volumes:
+      - ./data:/app/data
+      - ./uploads:/app/uploads
+      - ./logs:/app/logs
+
+    networks:
+      - app-network
+
+    # Health check (adjust endpoint if needed)
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:4000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+networks:
+  app-network:
+    driver: bridge
