@@ -45,8 +45,8 @@ jobs:
         env:
           WEBHOOK_SECRET: ${{ secrets.WEBHOOK_SECRET }}
         run: |
-          # JSON payload
-          PAYLOAD='{"ref":"refs/heads/main"}'
+          # JSON payload with actual branch ref (safeguard against accidental deployments)
+          PAYLOAD='{"ref":"${{ github.ref }}"}'
 
           # Generate GitHub-style HMAC SHA256 signature
           SIG=$(printf "$PAYLOAD" | openssl dgst -sha256 -hmac "$WEBHOOK_SECRET" | sed 's/^.* //')
