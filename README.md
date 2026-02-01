@@ -323,7 +323,14 @@ This wildcard allows all systemctl commands (restart, start, stop, status, is-ac
 - Listens on port 9000 (defined in hooks.yml)
 - Verifies GitHub payloads using $WEBHOOK_SECRET
 - Executes deploy.sh on a valid push to main
-- deploy.sh automatically restarts the web service after deployment
+- deploy.sh performs the following steps:
+  1. ✅ Checks Docker daemon status
+  2. 📥 Pulls latest Docker image from DockerHub
+  3. 🔄 Restarts web service via systemd
+  4. 🔍 Performs health checks on containers
+  5. 🧹 Cleans up unused Docker images
+  6. 📢 Sends Discord notifications at each step
+  7. ❌ Sends error notifications if any step fails
 
 ### 9. Setup GitHub Actions Workflow
 

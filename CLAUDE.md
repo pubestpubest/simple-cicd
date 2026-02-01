@@ -83,11 +83,14 @@ Scripts dynamically source `env.sh` to generate configs:
 3. Cloudflared routes traffic to webhook listener (port 9000)
 4. Webhook verifies signature and triggers `deploy.sh`
 5. `deploy.sh`:
+   - Checks Docker daemon status
    - Changes to `$APP_DIR` (which contains only `docker-compose.yml`, not source code)
    - Pulls latest Docker image from DockerHub (`docker compose pull`)
    - Restarts web service via `sudo -n systemctl restart web`
    - Systemd service runs `docker compose up -d --pull always`
-   - Sends success notification to Discord
+   - Performs health checks on containers
+   - Cleans up unused Docker images (`docker image prune -f`)
+   - Sends Discord notifications at each step (success/failure)
 
 **Important**: Passwordless sudo must be configured for the web service:
 ```bash
