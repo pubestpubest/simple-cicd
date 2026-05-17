@@ -1,0 +1,198 @@
+name: CI — Lint, Docker push, deploy (multi image)
+
+# Prevent overlapping deploys for the same branch.
+concurrency:
+  group: deploy-${{ github.ref }}
+  cancel-in-progress: true
+
+on:
+  push:
+    branches: [main]
+    # Only run when one of the service folders or this workflow changed.
+    paths:
+      - "backend/**"
+      - "frontend/**"
+      - ".github/workflows/push.multi-image.yaml"
+
+# -----------------------------------------------------------------------------
+# Pattern: each service (backend, frontend, ...) gets its own image on DockerHub.
+# Layout assumed:
+#   ./backend/Dockerfile
+#   ./frontend/Dockerfile
+#
+# Pipeline:
+#   1. lint-backend   } run in parallel, both must pass
+#   2. lint-frontend  }
+#   3. detect-changes — figure out which services actually changed
+#   4. build-backend  — only if backend/** changed
+#   5. build-frontend — only if frontend/** changed
+#   6. trigger-deployment — fire once at the end if any image was built
+#
+# To add a third service (e.g. worker): copy a lint job, add a filter under
+# detect-changes, copy a build job, and add it to trigger-deployment's needs.
+# -----------------------------------------------------------------------------
+
+jobs:
+  # ---------------------------------------------------------------------------
+  # Lint / compile checks — one job per service, run in parallel.
+  # Swap commands for whatever your stack uses.
+  # ---------------------------------------------------------------------------
+  lint-backend:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: backend/go.mod
+          cache-dependency-path: backend/go.sum
+
+      - name: Go vet and build (compile check)
+        working-directory: backend
+        run: |
+          go vet ./...
+          go build ./...
+
+  lint-frontend:
+    runs-on: ubuntu-latest
+    env:
+      CI: true
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 9
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: "pnpm"
+          cache-dependency-path: frontend/pnpm-lock.yaml
+
+      - name: Install and TypeScript check
+        working-directory: frontend
+        run: |
+          pnpm install --frozen-lockfile
+          pnpm exec tsc --noEmit
+
+  # ---------------------------------------------------------------------------
+  # Detect which service folders changed in this push.
+  # Outputs boolean strings ("true"/"false") consumed by the build jobs.
+  # ---------------------------------------------------------------------------
+  detect-changes:
+    runs-on: ubuntu-latest
+    outputs:
+      backend: ${{ steps.filter.outputs.backend }}
+      frontend: ${{ steps.filter.outputs.frontend }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: dorny/paths-filter@v3
+        id: filter
+        with:
+          filters: |
+            backend:
+              - 'backend/**'
+            frontend:
+              - 'frontend/**'
+
+  # ---------------------------------------------------------------------------
+  # Build + push backend image. Skipped if backend/** did not change.
+  # ---------------------------------------------------------------------------
+  build-backend:
+    needs: [detect-changes, lint-backend, lint-frontend]
+    if: needs.detect-changes.outputs.backend == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: docker/setup-buildx-action@v3
+
+      - uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+
+      - name: Build and push backend image
+        uses: docker/build-push-action@v6
+        with:
+          context: ./backend
+          push: true
+          tags: |
+            ${{ secrets.DOCKERHUB_USERNAME }}/${{ secrets.DOCKERHUB_REPO_BACKEND }}:latest
+            ${{ secrets.DOCKERHUB_USERNAME }}/${{ secrets.DOCKERHUB_REPO_BACKEND }}:${{ github.sha }}
+          cache-from: type=registry,ref=${{ secrets.DOCKERHUB_USERNAME }}/${{ secrets.DOCKERHUB_REPO_BACKEND }}:buildcache
+          cache-to: type=registry,ref=${{ secrets.DOCKERHUB_USERNAME }}/${{ secrets.DOCKERHUB_REPO_BACKEND }}:buildcache,mode=max
+
+      - name: Send Discord notification
+        uses: Ilshidur/action-discord@0.4.0
+        env:
+          DISCORD_WEBHOOK: ${{ secrets.DISCORD_WEBHOOK_URL }}
+        with:
+          args: "✅ Backend image built and pushed\n🐳 ${{ secrets.DOCKERHUB_USERNAME }}/${{ secrets.DOCKERHUB_REPO_BACKEND }}:latest\n📝 ${{ github.server_url }}/${{ github.repository }}/commit/${{ github.sha }}"
+
+  # ---------------------------------------------------------------------------
+  # Build + push frontend image. Skipped if frontend/** did not change.
+  # `target: production` is an example for a multi-stage Dockerfile — remove
+  # if your Dockerfile is single-stage.
+  # ---------------------------------------------------------------------------
+  build-frontend:
+    needs: [detect-changes, lint-backend, lint-frontend]
+    if: needs.detect-changes.outputs.frontend == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: docker/setup-buildx-action@v3
+
+      - uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+
+      - name: Build and push frontend image
+        uses: docker/build-push-action@v6
+        with:
+          context: ./frontend
+          target: production
+          push: true
+          tags: |
+            ${{ secrets.DOCKERHUB_USERNAME }}/${{ secrets.DOCKERHUB_REPO_FRONTEND }}:latest
+            ${{ secrets.DOCKERHUB_USERNAME }}/${{ secrets.DOCKERHUB_REPO_FRONTEND }}:${{ github.sha }}
+          cache-from: type=registry,ref=${{ secrets.DOCKERHUB_USERNAME }}/${{ secrets.DOCKERHUB_REPO_FRONTEND }}:buildcache
+          cache-to: type=registry,ref=${{ secrets.DOCKERHUB_USERNAME }}/${{ secrets.DOCKERHUB_REPO_FRONTEND }}:buildcache,mode=max
+
+      - name: Send Discord notification
+        uses: Ilshidur/action-discord@0.4.0
+        env:
+          DISCORD_WEBHOOK: ${{ secrets.DISCORD_WEBHOOK_URL }}
+        with:
+          args: "✅ Frontend image built and pushed\n🐳 ${{ secrets.DOCKERHUB_USERNAME }}/${{ secrets.DOCKERHUB_REPO_FRONTEND }}:latest\n📝 ${{ github.server_url }}/${{ github.repository }}/commit/${{ github.sha }}"
+
+  # ---------------------------------------------------------------------------
+  # Trigger the deployment webhook ONCE per push, after all builds finish.
+  # `always()` lets this job evaluate even if one build was skipped (the other
+  # service didn't change); we then require at least one build to have
+  # succeeded so we don't deploy when nothing changed.
+  # ---------------------------------------------------------------------------
+  trigger-deployment:
+    needs: [detect-changes, lint-backend, lint-frontend, build-backend, build-frontend]
+    if: |
+      always() &&
+      needs.lint-backend.result == 'success' &&
+      needs.lint-frontend.result == 'success' &&
+      (needs.build-backend.result == 'success' || needs.build-frontend.result == 'success')
+    runs-on: ubuntu-latest
+    steps:
+      - name: Trigger remote deployment webhook
+        env:
+          WEBHOOK_SECRET: ${{ secrets.WEBHOOK_SECRET }}
+        run: |
+          PAYLOAD='{"ref":"${{ github.ref }}"}'
+          SIG=$(printf "$PAYLOAD" | openssl dgst -sha256 -hmac "$WEBHOOK_SECRET" | sed 's/^.* //')
+          SIG="sha256=$SIG"
+          curl -sfS -X POST ${{ secrets.WEBHOOK_URL }} \
+            -H "Content-Type: application/json" \
+            -H "X-Hub-Signature-256: $SIG" \
+            -d "$PAYLOAD"
